@@ -77,7 +77,12 @@ void ParticleSystem::update_single_threaded()
 	{
 		for (int j = i + 1; j < num_particles; j++)
 		{
-			update_particle_pair(particles[current_buffer][i], particles[current_buffer][j]);
+			std::array<float, 3> p2_vel{0.0f, 0.0f, 0.0f};
+			update_particle_pair(particles[current_buffer][i], particles[current_buffer][j], p2_vel);
+			// Todo: Refactor so not so messy
+			particles[current_buffer][j].vx = p2_vel[0];
+			particles[current_buffer][j].vy = p2_vel[1];
+			particles[current_buffer][j].vz = p2_vel[2];
 		}
 	}
 	// Update the position of each particle after all forces have been calculated
@@ -134,7 +139,7 @@ void ParticleSystem::update_multi_threaded()
 	where the updated state should be written to. The index parameter specifies the index of the
 	particle that should be updated.
  */
-void ParticleSystem::update_particle(int index, std::vector<Particle> &source, std::vector<Particle> &target)
+void ParticleSystem::update_particle(int index, const std::vector<Particle> &source, std::vector<Particle> &target)
 {	
 	// Get the particle to write to as a reference from the target buffer
 	Particle &p = target[index];
@@ -146,14 +151,16 @@ void ParticleSystem::update_particle(int index, std::vector<Particle> &source, s
 	for (int j = 0; j < num_particles; ++j)
 	{
 		if (j == index) continue;
-		Particle &other = source[j];
-		update_particle_pair(p, other);
+		const Particle &other = source[j];
+		// Just a dummy array for function
+		std::array<float, 3> p2_vel{0.0f, 0.0f, 0.0f};
+		update_particle_pair(p, other, p2_vel);
 	}
 	update_position(p);
 }
 
 // Calculate the force exerted between two particles and updates velocities.
-void ParticleSystem::update_particle_pair(Particle &p1, Particle &p2)
+void ParticleSystem::update_particle_pair(Particle &p1, const Particle &p2, std::array<float, 3> &p2_vel)
 {
 	float dx = p2.x - p1.x;
 	float dy = p2.y - p1.y;
@@ -169,9 +176,9 @@ void ParticleSystem::update_particle_pair(Particle &p1, Particle &p2)
 	// For multi-threaded systems, the second particle will be updated by another thread.
 	if (num_threads == 1)
 	{
-		p2.vx -= force * dx;
-		p2.vy -= force * dy;
-		p2.vz -= force * dz;
+		p2_vel[0] -= force * dx;
+		p2_vel[1] -= force * dy;
+		p2_vel[2] -= force * dz;
 	}
 }
 
