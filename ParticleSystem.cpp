@@ -16,8 +16,8 @@ ParticleSystem::ParticleSystem(int num_particles, int num_threads, bool is_rende
 	: num_particles{num_particles},
 	  num_threads{num_threads},
 	  is_rendered{is_rendered},
-	  ww{},
-	  wh{}
+	  ww{1000},
+	  wh{1000}
 {
 	init_system();
 }
@@ -42,16 +42,22 @@ void ParticleSystem::init_system()
 			static_cast<float>(rand() % wh),
 			static_cast<float>(rand() % 1000),
 			// mass
-			(is_rendered && large_mass_index == i) ? 20.0f : 1.0f,
+			(is_rendered && large_mass_index == i) ? 20.0f : 2.0f,
 			// vx, vy, vz
 			0.0f,
 			0.0f,
 			0.0f,
-			is_rendered ? sf::Color(rand() % 256, rand() % 256, rand() % 256) : sf::Color()};
+			// color
+			is_rendered ? sf::Color(rand() % 256, rand() % 256, rand() % 256) : sf::Color()
+		};
+
+		// Copy the initial state to the second buffer
 		particles[1][i] = particles[0][i];
 	}
 }
 
+// Wrapper function for the real update functions,
+// calls either the single-threaded or multi-threaded version
 void ParticleSystem::update()
 {
 	if (num_threads == 1)
@@ -64,6 +70,7 @@ void ParticleSystem::update()
 	}
 }
 
+// O(n^2) update function for the single-threaded version
 void ParticleSystem::update_single_threaded()
 {
 	for (int i = 0; i < num_particles; i++)
@@ -73,7 +80,11 @@ void ParticleSystem::update_single_threaded()
 			update_particle_pair(particles[current_buffer][i], particles[current_buffer][j]);
 		}
 	}
-	update_positions();
+	// Update the position of each particle after all forces have been calculated
+	for (int i = 0; i < num_particles; i++)
+	{
+		update_position(particles[current_buffer][i]);
+	}
 }
 
 void ParticleSystem::update_multi_threaded()
@@ -84,56 +95,64 @@ void ParticleSystem::update_multi_threaded()
 	std::vector<std::thread> threads;
 	int particles_per_thread = num_particles / num_threads;
 
+	// Distribute particles among threads
 	for (int t = 0; t < num_threads; ++t)
 	{
 		int start = t * particles_per_thread;
+
+		// End of the last thread will be the total number of particles,
+		// for all other threads it will be the start of the next thread
 		int end = (t == num_threads - 1) ? num_particles : (t + 1) * particles_per_thread;
 
-		threads.emplace_back([this, start, end, source_buffer, target_buffer]()
-							 {
-                for (int i = start; i < end; ++i) {
-                    update_particle(i, particles[source_buffer], particles[target_buffer]);
-                } });
+		// Create a thread to update the particles in the range (start, end]
+		// The lambda function captures the variables by reference
+		threads.emplace_back([this, start, end, source_buffer, target_buffer]() 
+		{
+            for (int i = start; i < end; ++i) 
+			{
+                update_particle(i, particles[source_buffer], particles[target_buffer]);
+            } 
+		});
 	}
 
+	// Wait for all threads to finish
 	for (auto &thread : threads)
 	{
 		thread.join();
 	}
 
+	// Update the buffer index so that the updated state will be rendered
 	current_buffer = target_buffer;
-	update_positions();
 }
 
-void ParticleSystem::update_particle(int index, const std::vector<Particle> &source, std::vector<Particle> &target)
-{
-	Particle &p = target[index];
-	p = source[index]; // Start with the current state
+/*
+	Update the state of a single particle based on the forces exerted by all other particles
+	in the system. This function is called by each thread in the multi-threaded version.
+	Every thread updates a subset of the particles in the system.
 
+	source is the buffer containing the current state of the particles, and target is the buffer
+	where the updated state should be written to. The index parameter specifies the index of the
+	particle that should be updated.
+ */
+void ParticleSystem::update_particle(int index, std::vector<Particle> &source, std::vector<Particle> &target)
+{	
+	// Get the particle to write to as a reference from the target buffer
+	Particle &p = target[index];
+	// Copy the particle info from the source buffer
+	p = source[index];
+
+	// Update the particle based on the forces exerted by all other particles in the system.
+	// Iterates over all particles in the system from the source buffer, except the particle itself.
 	for (int j = 0; j < num_particles; ++j)
 	{
-		if (j == index)
-			continue;
-		const Particle &other = source[j];
-
-		float dx = other.x - p.x;
-		float dy = other.y - p.y;
-		float dz = other.z - p.z;
-		float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
-
-		if (dist < 1e-10)
-			continue; // Avoid division by zero
-
-		float force = p.mass * other.mass / (dist * dist * dist);
-		p.vx += force * dx;
-		p.vy += force * dy;
-		p.vz += force * dz;
+		if (j == index) continue;
+		Particle &other = source[j];
+		update_particle_pair(p, other);
 	}
-	p.x += p.vx;
-	p.y += p.vy;
-	p.z += p.vz;
+	update_position(p);
 }
 
+// Calculate the force exerted between two particles and updates velocities.
 void ParticleSystem::update_particle_pair(Particle &p1, Particle &p2)
 {
 	float dx = p2.x - p1.x;
@@ -141,36 +160,41 @@ void ParticleSystem::update_particle_pair(Particle &p1, Particle &p2)
 	float dz = p2.z - p1.z;
 	float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
 	float force = p1.mass * p2.mass / (dist * dist * dist);
+
 	p1.vx += force * dx;
 	p1.vy += force * dy;
 	p1.vz += force * dz;
-	p2.vx -= force * dx;
-	p2.vy -= force * dy;
-	p2.vz -= force * dz;
+
+	// Only update the velocity of the second particle if the system is single-threaded.
+	// For multi-threaded systems, the second particle will be updated by another thread.
+	if (num_threads == 1)
+	{
+		p2.vx -= force * dx;
+		p2.vy -= force * dy;
+		p2.vz -= force * dz;
+	}
 }
 
-void ParticleSystem::update_positions()
+// Helper function to update the position of one particle, also constrains the particle 
+// to the window dimensions if rendering particle motion.
+void ParticleSystem::update_position(Particle &p)
 {
-	for (auto &p : particles[current_buffer])
+	p.x += p.vx;
+	p.y += p.vy;
+	p.z += p.vz;
+
+	// Only constrain x,y coordinates to window dimensions if rendering particle motion
+	if (is_rendered)
 	{
-		p.x += p.vx;
-		p.y += p.vy;
-
-		// Only constrain x,y coordinates to window dimensions if rendering particle motion
-		if (is_rendered)
+		if (p.x <= 0 || p.x >= ww)
 		{
-			if (p.x <= 0 || p.x >= ww)
-			{
-				p.vx = -p.vx;
-				p.x = std::max(0.0f, std::min(p.x, static_cast<float>(ww)));
-			}
-			if (p.y <= 0 || p.y >= wh)
-			{
-				p.vy = -p.vy;
-				p.y = std::max(0.0f, std::min(p.y, static_cast<float>(wh)));
-			}
+			p.vx = -p.vx;
+			p.x = std::max(0.0f, std::min(p.x, static_cast<float>(ww)));
 		}
-
-		p.z += p.vz;
+		if (p.y <= 0 || p.y >= wh)
+		{
+			p.vy = -p.vy;
+			p.y = std::max(0.0f, std::min(p.y, static_cast<float>(wh)));
+		}
 	}
 }

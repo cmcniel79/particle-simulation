@@ -16,9 +16,10 @@ void ParticleRenderer::draw(sf::RenderTarget &target, sf::RenderStates states) c
 	shapes.clear();
 	for (auto &p : system.particles[system.current_buffer])
 	{
-		sf::CircleShape shape(p.mass); // Particle size
+		// Particle size
+		sf::CircleShape shape(p.mass);
 		shape.setPosition(static_cast<float>(p.x), static_cast<float>(p.y));
-		// Random Color
+		// Random color that was set when the particle was created
 		shape.setFillColor(p.color);
 		shapes.push_back(shape);
 	}

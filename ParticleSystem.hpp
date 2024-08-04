@@ -29,9 +29,9 @@ private:
 	void init_system();
 	void update_single_threaded();
 	void update_multi_threaded();
-	void update_particle(int index, const std::vector<Particle> &source, std::vector<Particle> &target);
+	void update_particle(int index, std::vector<Particle> &source, std::vector<Particle> &target);
 	void update_particle_pair(Particle &p1, Particle &p2);
-	void update_positions();
+	void update_position(Particle &p);
 
 	int num_particles;
 	int num_threads;

@@ -1,0 +1,16 @@
+The results for the single-threaded and multi-threaded sims. 
+
+ Number of particles: 100
+1 threads total time: 0.0500781 s, time per update: 0.000500781 s
+2 threads total time: 0.0743288 s, time per update: 0.000743288 s
+4 threads total time: 0.0512211 s, time per update: 0.000512211 s
+8 threads total time: 0.0600038 s, time per update: 0.000600038 s
+
+ Number of particles: 1000
+1 threads total time: 4.19489 s, time per update: 0.0419489 s
+2 threads total time: 3.59134 s, time per update: 0.0359134 s
+4 threads total time: 2.07526 s, time per update: 0.0207526 s
+8 threads total time: 1.33394 s, time per update: 0.0133394 s
+
+ Number of particles: 10000
+8 threads total time: 118.648 s, time per update: 1.18648 s

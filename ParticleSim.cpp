@@ -5,16 +5,19 @@ double ParticleSim::benchmark(int num_particles, int num_threads, int num_update
     ParticleSystem system(num_particles, num_threads, false);
     auto start = std::chrono::high_resolution_clock::now();
 
-    for (int i = 0; i < num_updates; ++i) { system.update(); } 
+    for (int i = 0; i < num_updates; ++i)
+    {
+        system.update();
+    }
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> diff = end - start;
-    
+
     return diff.count();
 }
 
 void ParticleSim::benchmark_sim()
-{   
+{
     const int NUM_UPDATES = 100;
     const std::vector<int> particle_counts = {100, 1000, 10000};
     const std::vector<int> thread_counts = {1, 2, 4, 8};
@@ -25,10 +28,11 @@ void ParticleSim::benchmark_sim()
         // Benchmark multi - threaded version with different thread counts
         for (int num_threads : thread_counts)
         {
-            if (num_particles > 1000 and num_threads < 8) continue;
-                double total_time = benchmark(num_threads, num_particles, NUM_UPDATES);
-                std::cout << num_threads << " threads total time: " << total_time << " s, "
-                    "time per update: " << total_time / NUM_UPDATES << " s" << std::endl;
+            if (num_particles > 1000 and num_threads < 8)
+                continue;
+            double total_time = benchmark(num_particles, num_threads, NUM_UPDATES);
+            std::cout << num_threads << " threads total time: " << total_time 
+            << " s, time per update: " << total_time / NUM_UPDATES << " s" << std::endl;
         }
     }
 }
@@ -64,6 +68,7 @@ void ParticleSim::render_sim(const int num_particles, const int num_threads, con
         window.display();
 
         // Calculate and print FPS
+        // TODO: Display only every second 
         float fps = 1.0f / clock.restart().asSeconds();
         renderer.updateFPS(fps);
     }
