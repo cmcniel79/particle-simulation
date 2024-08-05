@@ -4,21 +4,14 @@
 #include <cmath>
 #include <thread>
 #include <chrono>
-#include <SFML/Graphics.hpp>
-
-struct Particle
-{
-	float x, y, z;
-	float mass;
-	float vx, vy, vz;
-	sf::Color color;
-};
+#include "Particle.hpp"
+#include "QuadTreeNode.hpp"
 
 class ParticleSystem
 {
 public:
-	ParticleSystem(int num_particles, int num_threads, bool is_rendered, int window_width, int window_height);
-	ParticleSystem(int num_particles, int num_threads, bool is_rendered);
+	ParticleSystem(int num_particles, int num_threads, bool use_bh, int window_width, int window_height);
+	ParticleSystem(int num_particles, int num_threads, bool use_bh);
 	void update();
 	std::vector<Particle> particles[2]; // Double buffer
 
@@ -28,6 +21,7 @@ public:
 
 private:
 	void init_system();
+	void build_tree();
 	void update_single_threaded();
 	void update_multi_threaded();
 	void update_particle(int index, const std::vector<Particle> &source, std::vector<Particle> &target);
@@ -37,4 +31,6 @@ private:
 	int num_particles;
 	int num_threads;
 	bool is_rendered;
+	bool use_bh;
+	QuadTreeNode bh_tree;
 };

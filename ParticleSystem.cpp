@@ -1,23 +1,31 @@
 #include "ParticleSystem.hpp"
 
 // Constructor for rendering the system
-ParticleSystem::ParticleSystem(int num_particles, int num_threads, bool is_rendered, int window_width, int window_height)
+ParticleSystem::ParticleSystem(int num_particles, int num_threads, bool use_bh, int window_width, int window_height)
 	: num_particles{num_particles},
 	  num_threads{num_threads},
-	  is_rendered{is_rendered},
+	  is_rendered{true},
 	  ww{window_width},
-	  wh{window_height}
+	  wh{window_height},
+	  use_bh{use_bh},
+	  bh_tree{ 
+		  window_width / 2.0f, 
+		  window_height / 2.0f, 
+		  static_cast<float>(std::max(window_width, window_height))
+	  }
 {
 	init_system();
 }
 
 // Constructor for benchmarking
-ParticleSystem::ParticleSystem(int num_particles, int num_threads, bool is_rendered)
+ParticleSystem::ParticleSystem(int num_particles, int num_threads, bool use_bh)
 	: num_particles{num_particles},
 	  num_threads{num_threads},
-	  is_rendered{is_rendered},
+	  is_rendered{false},
 	  ww{1000},
-	  wh{1000}
+	  wh{1000},
+	  use_bh{use_bh},
+	  bh_tree{500.0f, 500.0f, 500.0f}
 {
 	init_system();
 }
@@ -54,6 +62,14 @@ void ParticleSystem::init_system()
 		// Copy the initial state to the second buffer
 		particles[1][i] = particles[0][i];
 	}
+	if (use_bh) {
+		build_tree();
+	}
+}
+
+void ParticleSystem::build_tree()
+{
+
 }
 
 // Wrapper function for the real update functions,

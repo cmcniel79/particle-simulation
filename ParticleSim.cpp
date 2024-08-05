@@ -37,7 +37,7 @@ void ParticleSim::benchmark_sim()
     }
 }
 
-void ParticleSim::render_sim(const int num_particles, const int num_threads, const int window_width, const int window_height)
+void ParticleSim::render_sim(const int num_particles, const int num_threads, const bool use_bh, const int window_width, const int window_height)
 {
     sf::RenderWindow window(sf::VideoMode(window_width, window_height), "Particle System");
     window.setFramerateLimit(60);
